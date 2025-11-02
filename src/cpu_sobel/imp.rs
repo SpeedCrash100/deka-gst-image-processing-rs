@@ -97,9 +97,9 @@ impl VideoFilterImpl for CpuSobel {
         let out_stride = outframe.plane_stride()[0] as usize;
 
         const MATRIX: [[i16; 3]; 3] = [
-            [-1, 0, 1], //
-            [-1, 0, 1], //
-            [-1, 0, 1], //
+            [1, 2, 1],    //
+            [0, 0, 0],    //
+            [-1, -2, -1], //
         ];
 
         let plane_data = inframe.plane_data(0).unwrap();
