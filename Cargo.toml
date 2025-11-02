@@ -1,0 +1,22 @@
+[package]
+name = "deka-gst-image-processing-rs"
+description = "Deka's gstreamer plugins for image processing algos testing"
+repository = "https://github.com/speedCrash100/deka-gst-image-processing-rs"
+license = "MIT"
+authors = ["Anton Kushakov <speedcrash100@ya.ru>"]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.84"
+
+[lib]
+name = "gstdeka_image_processing_rs"
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+[dependencies]
+gstreamer = "0.22"
+gstreamer-base = "0.22"
+gstreamer-video = "0.22"
+
+[build-dependencies]
+gst-plugin-version-helper = "0.8"
