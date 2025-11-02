@@ -2,9 +2,12 @@ extern crate gstreamer as gst;
 extern crate gstreamer_base as gst_base;
 extern crate gstreamer_video as gst_video;
 
+mod cpu_sobel;
+
 use gst::glib;
 
 fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
+    cpu_sobel::register(plugin)?;
     Ok(())
 }
 
