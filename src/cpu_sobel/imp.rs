@@ -87,7 +87,6 @@ impl VideoFilterImpl for CpuSobel {
         inframe: &gst_video::VideoFrameRef<&gst::BufferRef>,
         outframe: &mut gst_video::VideoFrameRef<&mut gst::BufferRef>,
     ) -> Result<gst::FlowSuccess, gst::FlowError> {
-        // TODO: make sobel here
         let start = Instant::now();
 
         // We will process line by line starting from the second
