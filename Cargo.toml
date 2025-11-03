@@ -17,6 +17,9 @@ path = "src/lib.rs"
 gstreamer = "0.22"
 gstreamer-base = "0.22"
 gstreamer-video = "0.22"
+parking_lot = "0.12.5"
+pollster = "0.4.0"
+wgpu = "26.0.1"
 
 [build-dependencies]
 gst-plugin-version-helper = "0.8"
