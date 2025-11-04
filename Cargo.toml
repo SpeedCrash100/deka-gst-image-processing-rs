@@ -6,7 +6,7 @@ license = "MIT"
 authors = ["Anton Kushakov <speedcrash100@ya.ru>"]
 version = "0.1.0"
 edition = "2021"
-rust-version = "1.84"
+rust-version = "1.88"
 
 [lib]
 name = "gstdeka_image_processing_rs"
@@ -20,7 +20,7 @@ gstreamer-base = "0.22"
 gstreamer-video = "0.22"
 parking_lot = "0.12.5"
 pollster = "0.4.0"
-wgpu = "26.0.1"
+wgpu = "27"
 
 [build-dependencies]
 gst-plugin-version-helper = "0.8"

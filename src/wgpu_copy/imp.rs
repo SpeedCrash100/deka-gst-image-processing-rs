@@ -208,7 +208,10 @@ impl VideoFilterImpl for WgpuCopy {
         output_slice.map_async(wgpu::MapMode::Read, |_| {}); // We depend on poll, so we don't need an callback
         input_slice.map_async(wgpu::MapMode::Write, |_| {}); // We also map the input buffer for next iteration
 
-        if let Err(err) = pipeline.device.poll(wgpu::PollType::wait_for(index)) {
+        if let Err(err) = pipeline.device.poll(wgpu::PollType::Wait {
+            submission_index: Some(index),
+            timeout: None,
+        }) {
             gst::error!(CAT, imp: self, "Error submitting command buffer: {}", err);
             return Err(gst::FlowError::Error);
         }

@@ -309,7 +309,7 @@ impl VideoFilterImpl for WgpuSobelSimple {
                 layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(4 * inframe.width()),
-                    rows_per_image: Some(4 * inframe.width() * inframe.height()),
+                    rows_per_image: Some(inframe.height()),
                 },
             },
             pipeline.input_texture.as_image_copy(),
@@ -339,7 +339,7 @@ impl VideoFilterImpl for WgpuSobelSimple {
                 layout: wgpu::TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(4 * outframe.width()),
-                    rows_per_image: Some(4 * outframe.width() * outframe.height()),
+                    rows_per_image: Some(outframe.height()),
                 },
             },
             wgpu::Extent3d {
@@ -357,7 +357,10 @@ impl VideoFilterImpl for WgpuSobelSimple {
         output_slice.map_async(wgpu::MapMode::Read, |_| {}); // We depend on poll, so we don't need an callback
         input_slice.map_async(wgpu::MapMode::Write, |_| {}); // We also map the input buffer for next iteration
 
-        if let Err(err) = pipeline.device.poll(wgpu::PollType::wait_for(index)) {
+        if let Err(err) = pipeline.device.poll(wgpu::PollType::Wait {
+            submission_index: Some(index),
+            timeout: None,
+        }) {
             gst::error!(CAT, imp: self, "Error submitting command buffer: {}", err);
             return Err(gst::FlowError::Error);
         }
