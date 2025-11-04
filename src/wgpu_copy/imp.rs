@@ -1,7 +1,7 @@
 use std::sync::LazyLock;
 use std::time::Instant;
 
-use crate::glib;
+use crate::{glib, wgpu_env};
 use gst::glib::subclass::prelude::*;
 use gst::glib::subclass::{object::ObjectImpl, types::ObjectSubclass};
 use gst::subclass::prelude::*;
@@ -103,7 +103,7 @@ impl VideoFilterImpl for WgpuCopy {
         out_info: &gst_video::VideoInfo,
     ) -> Result<(), gst::LoggableError> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
-            backends: wgpu::Backends::GL,
+            backends: wgpu_env::backend(),
             ..Default::default()
         });
 
