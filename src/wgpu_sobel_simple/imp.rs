@@ -310,7 +310,7 @@ impl VideoFilterImpl for WgpuSobelSimple {
                     layout: wgpu::TexelCopyBufferLayout {
                         offset: 0,
                         bytes_per_row: Some(4 * inframe.width()),
-                        rows_per_image: Some(4 * inframe.width() * inframe.height()),
+                        rows_per_image: Some(inframe.height()),
                     },
                 },
                 pipeline.input_texture.as_image_copy(),
@@ -349,7 +349,7 @@ impl VideoFilterImpl for WgpuSobelSimple {
                     layout: wgpu::TexelCopyBufferLayout {
                         offset: 0,
                         bytes_per_row: Some(4 * outframe.width()),
-                        rows_per_image: Some(4 * outframe.width() * outframe.height()),
+                        rows_per_image: Some(outframe.height()),
                     },
                 },
                 wgpu::Extent3d {
