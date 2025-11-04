@@ -302,25 +302,30 @@ impl VideoFilterImpl for WgpuSobelSimple {
 
         pipeline.input_buffer.unmap();
 
-        let mut encoder = pipeline.device.create_command_encoder(&Default::default());
-        encoder.copy_buffer_to_texture(
-            wgpu::TexelCopyBufferInfoBase {
-                buffer: &pipeline.input_buffer,
-                layout: wgpu::TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some(4 * inframe.width()),
-                    rows_per_image: Some(4 * inframe.width() * inframe.height()),
+        {
+            let mut encoder = pipeline.device.create_command_encoder(&Default::default());
+            encoder.copy_buffer_to_texture(
+                wgpu::TexelCopyBufferInfoBase {
+                    buffer: &pipeline.input_buffer,
+                    layout: wgpu::TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(4 * inframe.width()),
+                        rows_per_image: Some(4 * inframe.width() * inframe.height()),
+                    },
                 },
-            },
-            pipeline.input_texture.as_image_copy(),
-            wgpu::Extent3d {
-                width: inframe.width(),
-                height: inframe.height(),
-                depth_or_array_layers: 1,
-            },
-        );
+                pipeline.input_texture.as_image_copy(),
+                wgpu::Extent3d {
+                    width: inframe.width(),
+                    height: inframe.height(),
+                    depth_or_array_layers: 1,
+                },
+            );
+
+            pipeline.queue.submit([encoder.finish()]);
+        }
 
         {
+            let mut encoder = pipeline.device.create_command_encoder(&Default::default());
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
                 ..Default::default()
             });
@@ -330,34 +335,38 @@ impl VideoFilterImpl for WgpuSobelSimple {
             let workgroup_x = inframe.width().div_ceil(8);
             let workgroup_y = inframe.height().div_ceil(8);
             pass.dispatch_workgroups(workgroup_x, workgroup_y, 1);
+            drop(pass);
+
+            pipeline.queue.submit([encoder.finish()]);
         }
 
-        encoder.copy_texture_to_buffer(
-            pipeline.output_texture.as_image_copy(),
-            wgpu::TexelCopyBufferInfoBase {
-                buffer: &pipeline.output_buffer,
-                layout: wgpu::TexelCopyBufferLayout {
-                    offset: 0,
-                    bytes_per_row: Some(4 * outframe.width()),
-                    rows_per_image: Some(4 * outframe.width() * outframe.height()),
+        {
+            let mut encoder = pipeline.device.create_command_encoder(&Default::default());
+            encoder.copy_texture_to_buffer(
+                pipeline.output_texture.as_image_copy(),
+                wgpu::TexelCopyBufferInfoBase {
+                    buffer: &pipeline.output_buffer,
+                    layout: wgpu::TexelCopyBufferLayout {
+                        offset: 0,
+                        bytes_per_row: Some(4 * outframe.width()),
+                        rows_per_image: Some(4 * outframe.width() * outframe.height()),
+                    },
                 },
-            },
-            wgpu::Extent3d {
-                width: outframe.width(),
-                height: outframe.height(),
-                depth_or_array_layers: 1,
-            },
-        );
+                wgpu::Extent3d {
+                    width: outframe.width(),
+                    height: outframe.height(),
+                    depth_or_array_layers: 1,
+                },
+            );
 
-        let command_buffer = encoder.finish();
-
-        let index = pipeline.queue.submit([command_buffer]);
+            pipeline.queue.submit([encoder.finish()]);
+        }
 
         let output_slice = pipeline.output_buffer.slice(..);
         output_slice.map_async(wgpu::MapMode::Read, |_| {}); // We depend on poll, so we don't need an callback
         input_slice.map_async(wgpu::MapMode::Write, |_| {}); // We also map the input buffer for next iteration
 
-        if let Err(err) = pipeline.device.poll(wgpu::PollType::wait_for(index)) {
+        if let Err(err) = pipeline.device.poll(wgpu::PollType::wait()) {
             gst::error!(CAT, imp: self, "Error submitting command buffer: {}", err);
             return Err(gst::FlowError::Error);
         }
