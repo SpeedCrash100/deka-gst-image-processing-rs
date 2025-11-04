@@ -6,6 +6,7 @@ mod cpu_sobel;
 mod wgpu_copy;
 mod wgpu_env;
 mod wgpu_sobel_simple;
+mod wgpu_texture_copy;
 
 use gst::glib;
 
@@ -14,6 +15,7 @@ fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
     cpu_sobel::register(plugin)?;
     wgpu_copy::register(plugin)?;
     wgpu_sobel_simple::register(plugin)?;
+    wgpu_texture_copy::register(plugin)?;
     Ok(())
 }
 
