@@ -14,6 +14,7 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [dependencies]
+env_logger = "0.11.8"
 gstreamer = "0.22"
 gstreamer-base = "0.22"
 gstreamer-video = "0.22"

@@ -10,6 +10,7 @@ mod wgpu_sobel_simple;
 use gst::glib;
 
 fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
+    env_logger::init();
     cpu_sobel::register(plugin)?;
     wgpu_copy::register(plugin)?;
     wgpu_sobel_simple::register(plugin)?;
