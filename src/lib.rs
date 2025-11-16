@@ -4,7 +4,6 @@ extern crate gstreamer_video as gst_video;
 
 mod cpu_sobel;
 mod wgpu_copy;
-mod wgpu_env;
 mod wgpu_sobel_simple;
 
 use gst::glib;

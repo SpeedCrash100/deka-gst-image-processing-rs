@@ -19,7 +19,7 @@ gstreamer-base = "0.22"
 gstreamer-video = "0.22"
 parking_lot = "0.12.5"
 pollster = "0.4.0"
-wgpu = "26.0.1"
+wgpu = { git = "https://github.com/SpeedCrash100/wgpu.git", rev = "10f27e7a46f968ec7fda466038e1d1b82954e4a3" }
 
 [build-dependencies]
 gst-plugin-version-helper = "0.8"
