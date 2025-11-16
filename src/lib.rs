@@ -3,6 +3,7 @@ extern crate gstreamer_base as gst_base;
 extern crate gstreamer_video as gst_video;
 
 mod cpu_sobel;
+mod gst_wgpu;
 mod wgpu_copy;
 mod wgpu_sobel_simple;
 
