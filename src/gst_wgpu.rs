@@ -3,6 +3,7 @@
 //!
 
 mod gst_wgpu_context;
+mod gst_wgpu_memory;
 
 use std::sync::LazyLock;
 
