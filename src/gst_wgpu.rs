@@ -3,3 +3,16 @@
 //!
 
 mod gst_wgpu_context;
+
+use std::sync::LazyLock;
+
+pub use gst_wgpu_context::WgpuContext;
+pub use gst_wgpu_context::GST_CONTEXT_WGPU_TYPE;
+
+static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
+    gst::DebugCategory::new(
+        "gstwgpu",
+        gst::DebugColorFlags::empty(),
+        Some("Gstreamer WGPU interop structures"),
+    )
+});

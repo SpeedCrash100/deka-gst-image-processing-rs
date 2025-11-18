@@ -2,15 +2,17 @@ use std::sync::LazyLock;
 use std::time::Instant;
 
 use crate::glib;
+use crate::gst_wgpu::{WgpuContext, GST_CONTEXT_WGPU_TYPE};
+use gst::glib::object::Cast;
 use gst::glib::subclass::prelude::*;
 use gst::glib::subclass::{object::ObjectImpl, types::ObjectSubclass};
+use gst::prelude::ElementExt;
 use gst::subclass::prelude::*;
 use gst_base::subclass::prelude::BaseTransformImpl;
 use gst_base::subclass::BaseTransformMode;
 use gst_video::subclass::prelude::VideoFilterImpl;
 use gst_video::VideoFrameExt;
 use parking_lot::Mutex;
-use pollster::FutureExt;
 
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
     gst::DebugCategory::new(
@@ -22,8 +24,6 @@ static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
 
 #[derive(Debug)]
 struct WebGPUState {
-    device: wgpu::Device,
-    queue: wgpu::Queue,
     input_buffer: wgpu::Buffer,
     input_texture: wgpu::Texture,
     output_texture: wgpu::Texture,
@@ -34,10 +34,54 @@ struct WebGPUState {
 
 #[derive(Debug)]
 pub struct WgpuSobelSimple {
+    wgpu_context: Mutex<Option<WgpuContext>>,
     pipeline: Mutex<Option<WebGPUState>>,
 }
 
-impl WgpuSobelSimple {}
+impl WgpuSobelSimple {
+    pub fn set_wgpu_context(&self, context: WgpuContext) {
+        let mut lock: parking_lot::lock_api::MutexGuard<
+            '_,
+            parking_lot::RawMutex,
+            Option<WgpuContext>,
+        > = self.wgpu_context.lock();
+
+        if lock.is_some() {
+            return;
+        }
+
+        *lock = Some(context);
+    }
+
+    fn create_own_context(&self) {
+        gst::info!(CAT, imp: self, "creating own wgpu context");
+
+        let obj = self.obj();
+        let element = obj.upcast_ref::<gst::Element>();
+
+        let wgpu_ctx = WgpuContext::new(
+            &wgpu::RequestAdapterOptions {
+                ..Default::default()
+            },
+            &wgpu::DeviceDescriptor {
+                label: None,
+                required_features: wgpu::Features::empty(),
+                required_limits: wgpu::Limits::downlevel_defaults(),
+                experimental_features: wgpu::ExperimentalFeatures::disabled(),
+                memory_hints: wgpu::MemoryHints::Performance,
+                trace: wgpu::Trace::Off,
+            },
+            false,
+        );
+        let ctx = wgpu_ctx.as_gst_context();
+        self.set_context(&ctx);
+
+        let message = gst::message::HaveContext::builder(ctx)
+            .src(&*self.obj())
+            .build();
+        element.post_message(message).unwrap();
+    }
+}
 
 #[glib::object_subclass]
 impl ObjectSubclass for WgpuSobelSimple {
@@ -47,6 +91,7 @@ impl ObjectSubclass for WgpuSobelSimple {
 
     fn with_class(_klass: &Self::Class) -> Self {
         Self {
+            wgpu_context: Mutex::new(None),
             pipeline: Mutex::new(None),
         }
     }
@@ -91,12 +136,60 @@ impl ElementImpl for WgpuSobelSimple {
         });
         PAD_TEMPLATES.as_ref()
     }
+
+    fn query(&self, query: &mut gst::QueryRef) -> bool {
+        let query_view = query.view_mut();
+        match query_view {
+            gst::QueryViewMut::Context(_) => {
+                gst::info!(CAT, imp: self, "got context query");
+            }
+            _ => {}
+        };
+
+        self.parent_query(query)
+    }
+
+    fn set_context(&self, context: &gst::Context) {
+        if context.context_type() == GST_CONTEXT_WGPU_TYPE {
+            gst::debug!(CAT, imp: self, "Received wgpu context");
+
+            let Some(wgpu_ctx) = WgpuContext::map_gst_context_to_wgpu(context.clone()) else {
+                gst::error!(CAT, imp: self, "Received invalid wgpu context");
+                return;
+            };
+
+            self.set_wgpu_context(wgpu_ctx);
+        }
+
+        self.parent_set_context(context);
+    }
 }
 
 impl BaseTransformImpl for WgpuSobelSimple {
     const MODE: BaseTransformMode = BaseTransformMode::NeverInPlace;
     const PASSTHROUGH_ON_SAME_CAPS: bool = false;
     const TRANSFORM_IP_ON_PASSTHROUGH: bool = false;
+
+    fn start(&self) -> Result<(), gst::ErrorMessage> {
+        let obj = self.obj();
+        let element = obj.upcast_ref::<gst::Element>();
+
+        match WgpuContext::query_context_from_nearby_elements(element) {
+            Ok(true) => {
+                gst::info!(CAT, imp: self, "using shared wgpu context");
+                Ok(())
+            }
+            Ok(false) => {
+                self.create_own_context();
+                Ok(())
+            }
+            Err(err) => {
+                gst::error!(CAT, imp: self, "failed to query wgpu context from nearby elements: {}", err);
+                self.create_own_context();
+                Ok(())
+            }
+        }
+    }
 }
 
 impl VideoFilterImpl for WgpuSobelSimple {
@@ -107,52 +200,15 @@ impl VideoFilterImpl for WgpuSobelSimple {
         _outcaps: &gst::Caps,
         out_info: &gst_video::VideoInfo,
     ) -> Result<(), gst::LoggableError> {
-        let instance_description = wgpu::InstanceDescriptor::from_env_or_default();
-
-        let instance = wgpu::Instance::new(&instance_description);
-
-        let adapter_fut = instance.request_adapter(&wgpu::RequestAdapterOptions {
-            compatible_surface: None,
-            power_preference: wgpu::PowerPreference::HighPerformance,
-            ..Default::default()
-        });
-
-        let adapter = match adapter_fut.block_on() {
-            Ok(adapter) => adapter,
-            Err(err) => {
-                return Err(gst::loggable_error!(
-                    CAT,
-                    "Could not find a suitable WebGPU adapter: {}",
-                    err
-                ));
-            }
+        let Some(wgpu_context) = &*self.wgpu_context.lock() else {
+            return Err(gst::loggable_error!(CAT, "Could not find a WGPU context"));
         };
+
+        let device = wgpu_context.device();
 
         let channels = 4; // RGBx
         let in_frame_size = in_info.width() as u64 * in_info.height() as u64 * channels;
         let out_frame_size = out_info.width() as u64 * out_info.height() as u64 * channels;
-        let min_length = std::cmp::max(in_frame_size, out_frame_size);
-
-        let device_fut = adapter.request_device(&wgpu::DeviceDescriptor {
-            memory_hints: wgpu::MemoryHints::Performance,
-            required_features: wgpu::Features::empty(),
-            required_limits: wgpu::Limits {
-                max_buffer_size: min_length,
-                ..wgpu::Limits::downlevel_defaults()
-            },
-            ..Default::default()
-        });
-
-        let (device, queue) = match device_fut.block_on() {
-            Ok(device) => device,
-            Err(err) => {
-                return Err(gst::loggable_error!(
-                    CAT,
-                    "Could not create WebGPU device: {}",
-                    err
-                ));
-            }
-        };
 
         // This buffer will be used to copy the input frame into.
         let input_buffer = device.create_buffer(&wgpu::BufferDescriptor {
@@ -267,8 +323,6 @@ impl VideoFilterImpl for WgpuSobelSimple {
         {
             let mut pipeline = self.pipeline.lock();
             *pipeline = Some(WebGPUState {
-                device,
-                queue,
                 input_buffer,
                 input_texture,
                 output_texture,
@@ -292,6 +346,10 @@ impl VideoFilterImpl for WgpuSobelSimple {
             return Err(gst::FlowError::NotNegotiated);
         };
 
+        let Some(wgpu_context) = &*self.wgpu_context.lock() else {
+            return Err(gst::FlowError::NotNegotiated);
+        };
+
         let input_slice = pipeline.input_buffer.slice(..);
         {
             let mut input_mapped = input_slice.get_mapped_range_mut();
@@ -301,7 +359,9 @@ impl VideoFilterImpl for WgpuSobelSimple {
 
         pipeline.input_buffer.unmap();
 
-        let mut encoder = pipeline.device.create_command_encoder(&Default::default());
+        let mut encoder = wgpu_context
+            .device()
+            .create_command_encoder(&Default::default());
         encoder.copy_buffer_to_texture(
             wgpu::TexelCopyBufferInfoBase {
                 buffer: &pipeline.input_buffer,
@@ -350,13 +410,13 @@ impl VideoFilterImpl for WgpuSobelSimple {
 
         let command_buffer = encoder.finish();
 
-        let index = pipeline.queue.submit([command_buffer]);
+        let index = wgpu_context.queue().submit([command_buffer]);
 
         let output_slice = pipeline.output_buffer.slice(..);
         output_slice.map_async(wgpu::MapMode::Read, |_| {}); // We depend on poll, so we don't need an callback
         input_slice.map_async(wgpu::MapMode::Write, |_| {}); // We also map the input buffer for next iteration
 
-        if let Err(err) = pipeline.device.poll(wgpu::PollType::Wait {
+        if let Err(err) = wgpu_context.device().poll(wgpu::PollType::Wait {
             submission_index: Some(index),
             timeout: None,
         }) {
