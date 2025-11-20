@@ -60,11 +60,11 @@ impl WgpuContext {
             }
         };
 
-        Self::from_ready(device, queue, busy_wait)
+        Self::from_ready(Arc::new(device), Arc::new(queue), busy_wait)
     }
 
     /// Create a new WGPU context from an already created device and queue.
-    pub fn from_ready(device: wgpu::Device, queue: wgpu::Queue, busy_wait: bool) -> Self {
+    pub fn from_ready(device: Arc<wgpu::Device>, queue: Arc<wgpu::Queue>, busy_wait: bool) -> Self {
         let out: Self = glib::Object::new();
 
         let poll_device = device.clone();
@@ -78,13 +78,14 @@ impl WgpuContext {
 
             running.store(true, Ordering::Relaxed);
 
-            while running.load(Ordering::Relaxed) {
+            gst::info!(CAT, "ctx started");
+            while running.load(Ordering::Acquire) {
                 if let Err(err) = poll_device.poll(poll_type.clone()) {
                     glib::g_error!("wgpu", "Failed to poll device: {}", err);
                     break;
                 }
             }
-
+            gst::info!(CAT, "ctx stopped");
             running.store(false, Ordering::Relaxed);
         });
 

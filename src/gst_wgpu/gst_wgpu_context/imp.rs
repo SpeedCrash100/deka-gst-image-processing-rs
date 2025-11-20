@@ -6,13 +6,13 @@ use std::{
     },
 };
 
-use crate::glib;
+use crate::{glib, gst_wgpu::CAT};
 use gst::glib::subclass::prelude::*;
 
 #[derive(Debug)]
 pub struct WgpuContext {
-    pub(super) device: UnsafeCell<Option<wgpu::Device>>,
-    pub(super) queue: UnsafeCell<Option<wgpu::Queue>>,
+    pub(super) device: UnsafeCell<Option<Arc<wgpu::Device>>>,
+    pub(super) queue: UnsafeCell<Option<Arc<wgpu::Queue>>>,
     pub(super) running: Arc<AtomicBool>,
 }
 
@@ -33,7 +33,8 @@ impl ObjectSubclass for WgpuContext {
 
 impl ObjectImpl for WgpuContext {
     fn dispose(&self) {
-        self.running.store(false, Ordering::Relaxed);
+        gst::info!(CAT, imp: self, "stopping ctx");
+        self.running.store(false, Ordering::Release);
     }
 }
 

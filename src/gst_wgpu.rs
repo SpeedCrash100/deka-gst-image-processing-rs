@@ -3,7 +3,7 @@
 //!
 
 mod gst_wgpu_context;
-// mod gst_wgpu_memory;
+mod gst_wgpu_memory;
 
 use std::sync::LazyLock;
 
@@ -17,3 +17,9 @@ static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {
         Some("Gstreamer WGPU interop structures"),
     )
 });
+
+macro_rules! skip_assert_initialized {
+    () => {};
+}
+
+use skip_assert_initialized;
