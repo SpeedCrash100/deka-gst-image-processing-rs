@@ -8,7 +8,7 @@ use crate::gst_wgpu::skip_assert_initialized;
 use crate::{glib, gst_wgpu::WgpuContext};
 
 /// Caps with this feature implies that the buffer is a WGPU buffer.
-pub const GST_CAPS_FEATURE_MEMORY_WGPU_BUFFER: &str = "memory:wgpu-buffer";
+pub const GST_CAPS_FEATURE_MEMORY_WGPU_BUFFER: &str = "memory:WgpuBuffer";
 
 gst::memory_object_wrapper!(
     WgpuMemory,
