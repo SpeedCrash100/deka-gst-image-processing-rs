@@ -54,8 +54,8 @@ impl std::fmt::Debug for WgpuMemory {
 impl WgpuMemory {
     pub fn map_read(&self, size: u64) -> glib::ffi::gpointer {
         if !self.buffer.usage().contains(wgpu::BufferUsages::MAP_READ) {
-            gst::error!(CAT, "trying to map read buffer which is not MAP_READ");
-            return core::ptr::null_mut();
+            gst::warning!(CAT, "trying to map read buffer which is not MAP_READ. You likely want to use buffer in GPU, but now trying to read from it directly");
+            return self.map_write(size);
         }
 
         let (tx, rx) = std::sync::mpsc::sync_channel(1);
