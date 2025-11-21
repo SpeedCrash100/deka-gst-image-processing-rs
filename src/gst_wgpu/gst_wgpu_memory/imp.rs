@@ -313,6 +313,12 @@ impl AllocatorImpl for WgpuMemoryAllocator {
             ManuallyDrop::drop(&mut wgpu_mem_obj.buffer);
         };
 
+        unsafe {
+            gst::ffi::gst_mini_object_unref(
+                wgpu_mem_obj.parent.allocator as *mut gst::ffi::GstMiniObject,
+            )
+        };
+
         let layout = core::alloc::Layout::new::<WgpuMemory>();
         unsafe { std::alloc::dealloc(wgpu_mem.as_mut_ptr() as *mut u8, layout) };
         gst::trace!(CAT, "free buffer {:p}", wgpu_mem.as_mut_ptr());

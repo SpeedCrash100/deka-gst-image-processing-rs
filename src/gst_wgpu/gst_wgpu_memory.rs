@@ -64,21 +64,7 @@ mod tests {
     fn alloc() {
         gst::init().unwrap();
 
-        let context = WgpuContext::new(
-            &wgpu::RequestAdapterOptions {
-                compatible_surface: None,
-                ..Default::default()
-            },
-            &wgpu::DeviceDescriptor {
-                label: None,
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::downlevel_defaults(),
-                experimental_features: wgpu::ExperimentalFeatures::disabled(),
-                memory_hints: wgpu::MemoryHints::Performance,
-                trace: wgpu::Trace::Off,
-            },
-            true,
-        );
+        let context = WgpuContext::default();
 
         let allocator = WgpuMemoryAllocator::new(context.clone());
         let mut mem = allocator.alloc(64, None).unwrap();
@@ -91,21 +77,7 @@ mod tests {
     fn map_is_works() {
         gst::init().unwrap();
 
-        let context = WgpuContext::new(
-            &wgpu::RequestAdapterOptions {
-                compatible_surface: None,
-                ..Default::default()
-            },
-            &wgpu::DeviceDescriptor {
-                label: None,
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::downlevel_defaults(),
-                experimental_features: wgpu::ExperimentalFeatures::disabled(),
-                memory_hints: wgpu::MemoryHints::Performance,
-                trace: wgpu::Trace::Off,
-            },
-            true,
-        );
+        let context = WgpuContext::default();
 
         let allocator = WgpuMemoryAllocator::new(context.clone());
         let mut in_mem = allocator.alloc(64, None).unwrap();

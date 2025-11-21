@@ -59,20 +59,7 @@ impl WgpuSobelSimple {
         let obj = self.obj();
         let element = obj.upcast_ref::<gst::Element>();
 
-        let wgpu_ctx = WgpuContext::new(
-            &wgpu::RequestAdapterOptions {
-                ..Default::default()
-            },
-            &wgpu::DeviceDescriptor {
-                label: None,
-                required_features: wgpu::Features::empty(),
-                required_limits: wgpu::Limits::downlevel_defaults(),
-                experimental_features: wgpu::ExperimentalFeatures::disabled(),
-                memory_hints: wgpu::MemoryHints::Performance,
-                trace: wgpu::Trace::Off,
-            },
-            false,
-        );
+        let wgpu_ctx = WgpuContext::default();
         let ctx = wgpu_ctx.as_gst_context();
         self.set_context(&ctx);
 
