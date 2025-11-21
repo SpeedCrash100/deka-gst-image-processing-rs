@@ -7,11 +7,13 @@ mod gst_wgpu_memory;
 
 use std::sync::LazyLock;
 
+pub use gst_wgpu_context::PollType;
 pub use gst_wgpu_context::WgpuContext;
 pub use gst_wgpu_context::GST_CONTEXT_WGPU_TYPE;
 
 pub use gst_wgpu_memory::{
-    WgpuMemory, WgpuMemoryAllocator, WgpuMemoryRef, GST_CAPS_FEATURE_MEMORY_WGPU_BUFFER,
+    WgpuMemory, WgpuMemoryAllocator, WgpuMemoryExt, WgpuMemoryRef,
+    GST_CAPS_FEATURE_MEMORY_WGPU_BUFFER,
 };
 
 static CAT: LazyLock<gst::DebugCategory> = LazyLock::new(|| {

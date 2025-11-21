@@ -5,6 +5,7 @@ extern crate gstreamer_video as gst_video;
 mod cpu_sobel;
 mod gst_wgpu;
 mod wgpu_copy;
+mod wgpu_sobel_mem;
 mod wgpu_sobel_simple;
 
 use gst::glib;
@@ -12,6 +13,7 @@ use gst::glib;
 fn plugin_init(plugin: &gst::Plugin) -> Result<(), glib::BoolError> {
     cpu_sobel::register(plugin)?;
     wgpu_copy::register(plugin)?;
+    wgpu_sobel_mem::register(plugin)?;
     wgpu_sobel_simple::register(plugin)?;
     Ok(())
 }

@@ -1,6 +1,8 @@
 use std::cell::UnsafeCell;
 use std::ffi::c_void;
 use std::mem::ManuallyDrop;
+use std::sync::mpsc::TryRecvError;
+use std::time::Duration;
 
 use glib::object::ObjectType;
 use gst::glib::object::Cast;
@@ -11,8 +13,8 @@ use gst::glib::translate::{FromGlibPtrBorrow, ToGlibPtr};
 use gst::subclass::prelude::{AllocatorImpl, GstObjectImpl};
 use parking_lot::Mutex;
 
-use crate::glib;
 use crate::gst_wgpu::{WgpuContext, CAT};
+use crate::{glib, gst_wgpu};
 
 pub const GST_WGPU_ALLOCATOR_TYPE: &[u8] = b"RustWgpuMemoryAllocator\0";
 
@@ -65,20 +67,56 @@ impl WgpuMemory {
                 tx.send(res).ok();
             });
 
-        match rx.recv() {
-            Ok(Ok(())) => {
+        let result;
+
+        if matches!(self.context.poll_type(), gst_wgpu::PollType::Manual) {
+            // If in manual mode, we need to poll the buffer manually.
+            let mut mut_last_poll = rx.try_recv();
+            while matches!(mut_last_poll, Err(TryRecvError::Empty)) {
+                self.context
+                    .device()
+                    .poll(wgpu::PollType::Wait {
+                        submission_index: None,
+                        timeout: Some(Duration::from_millis(250)),
+                    })
+                    .ok();
+                mut_last_poll = rx.try_recv();
+            }
+
+            match mut_last_poll {
+                Ok(res) => {
+                    result = res;
+                }
+                Err(_) => {
+                    gst::error!(CAT, "Failed to map buffer: no response");
+                    return core::ptr::null_mut();
+                }
+            }
+        } else {
+            // If threaded kind just wait
+            match rx.recv() {
+                Ok(res) => {
+                    // Success mapping
+                    result = res;
+                }
+                Err(_) => {
+                    gst::error!(CAT, "Failed to map buffer: no response");
+                    return core::ptr::null_mut();
+                }
+            }
+        }
+
+        match result {
+            Ok(()) => {
                 // Success mapping
                 let view = Box::new(self.buffer.get_mapped_range(..size));
                 let p = view.get_mapped_pointer();
                 *self.buffer_view.lock() = Some(view);
+                gst::trace!(CAT, "mapped read {:p}", &self);
                 p
             }
-            Ok(Err(err)) => {
+            Err(err) => {
                 gst::error!(CAT, "Failed to map buffer: {}", err);
-                core::ptr::null_mut()
-            }
-            Err(_) => {
-                gst::error!(CAT, "Failed to map buffer: no response");
                 core::ptr::null_mut()
             }
         }
@@ -97,20 +135,56 @@ impl WgpuMemory {
                 tx.send(res).ok();
             });
 
-        match rx.recv() {
-            Ok(Ok(())) => {
+        let result;
+
+        if matches!(self.context.poll_type(), gst_wgpu::PollType::Manual) {
+            // If in manual mode, we need to poll the buffer manually.
+            let mut mut_last_poll = rx.try_recv();
+            while matches!(mut_last_poll, Err(TryRecvError::Empty)) {
+                self.context
+                    .device()
+                    .poll(wgpu::PollType::Wait {
+                        submission_index: None,
+                        timeout: Some(Duration::from_millis(250)),
+                    })
+                    .ok();
+                mut_last_poll = rx.try_recv();
+            }
+
+            match mut_last_poll {
+                Ok(res) => {
+                    result = res;
+                }
+                Err(_) => {
+                    gst::error!(CAT, "Failed to map buffer: no response");
+                    return core::ptr::null_mut();
+                }
+            }
+        } else {
+            // If threaded kind just wait
+            match rx.recv() {
+                Ok(res) => {
+                    // Success mapping
+                    result = res;
+                }
+                Err(_) => {
+                    gst::error!(CAT, "Failed to map buffer: no response");
+                    return core::ptr::null_mut();
+                }
+            }
+        }
+
+        match result {
+            Ok(()) => {
                 // Success mapping
                 let view = Box::new(self.buffer.get_mapped_range_mut(..size));
                 let p = view.get_mapped_pointer();
                 *self.buffer_view.lock() = Some(view);
+                gst::trace!(CAT, "mapped write {:p}", &self);
                 p
             }
-            Ok(Err(err)) => {
+            Err(err) => {
                 gst::error!(CAT, "Failed to map buffer: {}", err);
-                core::ptr::null_mut()
-            }
-            Err(_) => {
-                gst::error!(CAT, "Failed to map buffer: no response");
                 core::ptr::null_mut()
             }
         }
@@ -121,6 +195,7 @@ impl WgpuMemory {
         *self.buffer_view.lock() = None;
         self.buffer.unmap();
         self.context.device().poll(wgpu::PollType::Poll).ok();
+        gst::trace!(CAT, "unmapped {:p}", &self);
     }
 }
 
@@ -150,6 +225,8 @@ unsafe extern "C" fn gst_wgpu_mem_map(
     assert!(!mem.is_null() && mem.is_aligned());
 
     let mem_ref = &*mem;
+
+    gst::trace!(CAT, "mapping {:p}", mem_ref);
 
     let mode = if flags & gst::ffi::GST_MAP_WRITE != 0 {
         wgpu::MapMode::Write

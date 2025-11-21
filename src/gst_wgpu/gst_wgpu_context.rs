@@ -44,7 +44,7 @@ impl Default for WgpuContext {
                 memory_hints: wgpu::MemoryHints::Performance,
                 trace: wgpu::Trace::Off,
             },
-            PollType::Threaded,
+            PollType::Manual,
         )
     }
 }
@@ -128,7 +128,7 @@ impl WgpuContext {
                     }
                     PollType::Threaded => wgpu::PollType::Wait {
                         submission_index: None,
-                        timeout: Some(Duration::from_millis(250)),
+                        timeout: Some(Duration::from_millis(25000)),
                     },
                     PollType::ThreadedBusy => wgpu::PollType::Poll,
                 };
@@ -190,6 +190,12 @@ impl WgpuContext {
         out.as_ref()
             .map(|x| &x.queue)
             .expect("inner is None, you must create WgpuContext using associated WgpuContext::new")
+    }
+
+    #[inline]
+    pub fn poll_type(&self) -> PollType {
+        let out = unsafe { &*self.imp().poll_type.get() };
+        *out
     }
 
     fn query_context_pad(element: &gst::Element, pad: &gst::Pad) -> Option<gst::Context> {

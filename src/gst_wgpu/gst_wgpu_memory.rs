@@ -10,6 +10,10 @@ use crate::{glib, gst_wgpu::WgpuContext};
 /// Caps with this feature implies that the buffer is a WGPU buffer.
 pub const GST_CAPS_FEATURE_MEMORY_WGPU_BUFFER: &str = "memory:WgpuBuffer";
 
+pub trait WgpuMemoryExt {
+    fn buffer(&self) -> &wgpu::Buffer;
+}
+
 gst::memory_object_wrapper!(
     WgpuMemory,
     WgpuMemoryRef,
@@ -18,6 +22,18 @@ gst::memory_object_wrapper!(
     gst::Memory,
     gst::MemoryRef
 );
+
+impl WgpuMemoryExt for WgpuMemoryRef {
+    fn buffer(&self) -> &wgpu::Buffer {
+        &self.0.buffer
+    }
+}
+
+impl WgpuMemoryExt for WgpuMemory {
+    fn buffer(&self) -> &wgpu::Buffer {
+        &self.0.buffer
+    }
+}
 
 glib::wrapper! {
     pub struct WgpuMemoryAllocator(ObjectSubclass<imp::WgpuMemoryAllocator>) @extends gst::Allocator, gst::Object;
