@@ -195,9 +195,9 @@ impl WindowDataRgbx<'_> {
         let (next_r, next_g, next_b) = self.element_wise(&self.next_line_window, &self.kernel[2]);
 
         (
-            (prev_r + curr_r + next_r).abs() as u8,
-            (prev_g + curr_g + next_g).abs() as u8,
-            (prev_b + curr_b + next_b).abs() as u8,
+            (prev_r + curr_r + next_r).clamp(0, 255) as u8,
+            (prev_g + curr_g + next_g).clamp(0, 255) as u8,
+            (prev_b + curr_b + next_b).clamp(0, 255) as u8,
         )
     }
 }
