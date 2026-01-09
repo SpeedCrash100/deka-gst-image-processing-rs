@@ -146,7 +146,12 @@ impl VideoFilterImpl for CpuSobel {
         }
 
         let elapsed = start.elapsed();
-        gst::debug!(CAT, imp: self, "processed in {} ms", 1_000.0 * elapsed.as_secs_f64());
+        gst::debug!(
+            CAT,
+            imp = self,
+            "processed in {} ms",
+            1_000.0 * elapsed.as_secs_f64()
+        );
 
         Ok(gst::FlowSuccess::Ok)
     }

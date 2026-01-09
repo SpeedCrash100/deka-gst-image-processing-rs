@@ -14,9 +14,11 @@ crate-type = ["cdylib"]
 path = "src/lib.rs"
 
 [dependencies]
-gstreamer = "0.22"
-gstreamer-base = "0.22"
-gstreamer-video = "0.22"
+gstreamer = "0.24"
+gstreamer-base = "0.24"
+gstreamer-video = "0.24"
+gstreamer-gl = "0.24"
+ocl = "0.19.7"
 parking_lot = "0.12.5"
 
 [build-dependencies]
