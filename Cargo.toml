@@ -20,6 +20,7 @@ gstreamer-video = "0.24"
 gstreamer-gl = "0.24"
 ocl = "0.19.7"
 parking_lot = "0.12.5"
+glow = "0.16.0"
 
 [build-dependencies]
 gst-plugin-version-helper = "0.8"
