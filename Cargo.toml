@@ -18,8 +18,6 @@ gstreamer = "0.22"
 gstreamer-base = "0.22"
 gstreamer-video = "0.22"
 parking_lot = "0.12.5"
-pollster = "0.4.0"
-wgpu = { git = "https://github.com/gfx-rs/wgpu.git", rev = "119b4efada475f95507f8f577bf1abfe3d529fd0" }
 
 [build-dependencies]
 gst-plugin-version-helper = "0.8"
